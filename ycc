@@ -39,12 +39,15 @@ backtest()
 	report $__reports_args
 }
 
-official_backtest()
-{
+#official backtest
+obacktest()
+{ 
+
 	__activate_python_env
 
 	#list of tests name 
 	__tests=( "uptrend:$uptrend" "downtrend:$downtrend" "mm2021:$mm2021" "up:$up" "down:$down" "side:$side" )
+	__timeframes=( "1h" "4h" "12h" )
 
 	echo "WARNING: this is an official backtest, it will run with timeframe_details=5m over several timeranges"
 	sleep 5
@@ -53,13 +56,15 @@ official_backtest()
 
 	__official=true;
 	for test in "${__tests[@]}" ; do
-		testname="${test%%:*}"
-		timerange="${test##*:}"
-		__timeframe_detail='5m'
-		__timerange=$timerange
-		__name=$testname
-
-		backtest
+		for timeframe in "${__timeframes[@]}" ; do
+			testname="${test%%:*}"
+			timerange="${test##*:}"
+			__timeframe_detail='5m'
+			__timerange=$timerange
+			__timeframe=$timeframe
+			__name="$testname""_""$__timeframe"
+			backtest
+		done
 	done
 
 }
@@ -158,7 +163,7 @@ __run_experiment()
 	then
 		echo $__cmd '>' "$__dir/$1.cmd"
 	else
-		"$__cmd_prefix $__cmd" > "$__dir/$1.cmd"
+		echo "$__cmd_prefix $__cmd" > "$__dir/$1.cmd"
 	fi
 
 	echo "Running $__cmd"
@@ -170,9 +175,6 @@ __run_experiment()
 	else
 		$__cmd_prefix $__cmd > "$__dir/$1.report"
 	fi
-
-	exit
-
 }
 
 __run_all_strategies()
