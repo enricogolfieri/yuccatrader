@@ -1,0 +1,286 @@
+
+uptrend="20210715-20211118"
+downtrend="20211118-20220515"
+mm2021="20210515-20220515"
+up="20210127-20210221"
+down="20210509-20210524"
+side="20210518-20210610"
+
+__volume='./user_data'
+__env=".env"
+
+backtest()
+{
+	__activate_python_env
+	#check values
+	[ -z "$__name" ] && echo "missing --name" && exit;
+	[ -z "$__timeframe" ] && echo "missing --timeframe" && exit;
+	[ -z "$__timerange" ] && echo "missing timerange" && exit;
+	[ -z "$__timeframe_detail" ] && echo "missing --timeframe-detail" && exit;
+
+
+	__reports_args=;
+	if [ -n "$__official" ]; 
+		then __reports_args="--official"; 
+	fi
+
+	#preparing folder in backtest_results 
+	__dir="$__volume/"backtest_results"/$__name"
+	mkdir -p $__dir
+
+	#run comand (either run_all_strategies or just one if one is selected)
+	if [ -z "$__strategy" ] 
+	then
+		__run_all_strategies
+	else
+		__run_experiment $__strategy
+	fi
+
+	report $__reports_args
+}
+
+official_backtest()
+{
+	__activate_python_env
+
+	#list of tests name 
+	__tests=( "uptrend:$uptrend" "downtrend:$downtrend" "mm2021:$mm2021" "up:$up" "down:$down" "side:$side" )
+
+	echo "WARNING: this is an official backtest, it will run with timeframe_details=5m over several timeranges"
+	sleep 5
+
+	echo "starting..."
+
+	__official=true;
+	for test in "${__tests[@]}" ; do
+		testname="${test%%:*}"
+		timerange="${test##*:}"
+		__timeframe_detail='5m'
+		__timerange=$timerange
+		__name=$testname
+
+		backtest
+	done
+
+}
+
+
+report()
+{
+	__activate_python_env
+
+	[ -z "$__name" ] && echo "missing --name" && exit;
+
+	python "pyscripts/csv_report.py" -n $__name $@
+}
+
+bulkdownload()
+{
+	__activate_python_env
+	__timerange="20190101-"
+	echo "Start downloading ..."
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
+}
+
+opt()
+{
+	echo "not implemented yet"
+}
+
+help(){
+    echo
+    echo -e "\033[1;4;32m""Functions:""\033[0;34m"
+    compgen -A function
+    echo
+    echo -e "\033[1;4;32m""Aliases:""\033[0;34m"
+    compgen -A alias
+    echo
+    echo -e "\033[0m"
+}
+
+setup()
+{
+	
+	rm -rf $__env
+	$__cmd_prefix python -m venv $__env
+
+	__activate_python_env
+
+	$__cmd_prefix python -m pip install --upgrade pip
+
+	#installing ta-lib
+	sudo $__cmd_prefix ./build_helpers/install_ta-lib.sh
+
+	#installing freqtrade
+	$__cmd_prefix git clone https://github.com/freqtrade/freqtrade.git
+	$__cmd_prefix cd freqtrade
+	$__cmd_prefix git checkout stable 
+
+	$__cmd_prefix pip install -r requirements.txt
+	$__cmd_prefix pip install -r requirements-hyperopt.txt
+	$__cmd_prefix pip install -r requirements-plot.txt
+	$__cmd_prefix python -m pip install -e .
+	$__cmd_prefix cd - 
+	$__cmd prefix pip install -r ./requirements.txt
+	#$__cmd_prefix rm -rf freqtrade
+}
+
+version()
+{
+	__activate_python_env
+	$__cmd_prefix freqtrade --version
+}
+
+#############################  PRIVATE #########################################
+__set()
+{
+	#first argument it s one command , followings are arguments
+	if [ -z "$__cmd" ]; then 
+		__cmd=$1;
+	else
+		__args+=($1);
+	fi
+}
+
+__run_experiment()
+{
+	# $1 = strategy name 
+
+	#define command (we always enable position stacking)
+	__cmd="freqtrade backtesting --config $__config --timerange $__timerange --strategy $1 --enable-position-stacking --timeframe $__timeframe --timeframe-detail $__timeframe_detail --backtest-filename $__dir/$1.json $__args --userdir $__volume";
+
+	#store the command that lead to the result (this is essential to compare different tests)
+	if [ "$__cmd_prefix" == "echo" ]
+	then
+		echo $__cmd '>' "$__dir/$1.cmd"
+	else
+		"$__cmd_prefix $__cmd" > "$__dir/$1.cmd"
+	fi
+
+	echo "Running $__cmd"
+
+	#run command and store report (just because we can)
+	if [ "$__cmd_prefix" == "echo" ]
+	then
+		echo $__cmd '>' "$__dir/$1.report"
+	else
+		$__cmd_prefix $__cmd > "$__dir/$1.report"
+	fi
+
+	exit
+
+}
+
+__run_all_strategies()
+{
+	#run 1 test per strategy
+	for file in user_data/strategies/*; do
+		if [ -f "$file" ]
+		then
+			strategy=${file%.py}
+			strategy=${strategy##*/}
+
+			echo "Testing $strategy"
+			__run_experiment $strategy
+		fi
+	done
+}
+
+__activate_python_env()
+{
+	#activate virtual environment
+	echo "Activating python environment"
+	$__cmd_prefix source $__env/bin/activate
+	echo "Activated python environment"
+}
+
+__parse_args()
+{
+	[[ -z ${__parsed_args} ]] && __parsed_args=true || return 0;
+
+	__cmd=;
+	__cmd_prefix=;
+	__dir=;
+	__name=;
+	__timerange=;
+	__timeframe=;
+	__timeframe_detail=5m;
+	__strategy=;
+	__config="$__volume/configs/bt/basic.json";
+	__args=();
+
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+			--echo)
+				__cmd_prefix=echo;
+				shift
+			;;
+
+			--name)
+				__name=$2;
+				shift 2;
+			;;
+
+			--strategy)
+				__strategy=$2
+				shift 2;		
+			;;
+			--timeframe)
+				__timeframe=$2;
+				shift 2;
+			;;
+			--timeframe-detail)
+				__timeframe_detail=$2;
+				shift 2;
+			;;
+
+			--uptrend)
+				__timerange="$uptrend"
+				shift
+			;;
+			--downtrend)
+				__timerange="$downtrend"
+				shift
+			;;
+			--up)
+				__timerange="$up"
+				shift
+			;;
+			--down)
+				__timerange="$down"
+				shift
+			;;
+			--side)
+				__timerange="$side"
+				shift
+			;;
+			--mm2021)
+				__timerange="$mm2021"
+				shift
+			;;
+			--basic)
+				__config="$__volume/configs/bt/basic.json"
+				shift
+			;;
+			--top10)
+				__config="$__volume/configs/bt/top10.json"
+				shift
+			;;
+			*)
+				__set $1;
+				shift
+			;;
+		esac;
+	done;
+}
+
+
+
+
+#run
+__parse_args $@
+$__cmd
