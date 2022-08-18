@@ -1,0 +1,34 @@
+{
+  "strategy_name": "BbandRsi",
+  "params": {
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": null,
+      "trailing_stop_positive_offset": 0.0,
+      "trailing_only_offset_is_reached": false
+    },
+    "buy": {
+      "bbdeviation": 1.23,
+      "bbscalar_buy": 1.04,
+      "bbwindow": 16,
+      "buy_rsi": 35,
+      "rsi_period": 14
+    },
+    "sell": {
+      "bbscalar_sell": 1.02,
+      "sell_rsi": 70
+    },
+    "protection": {},
+    "roi": {
+      "0": 0.599,
+      "1920": 0.16699999999999998,
+      "4154": 0.108,
+      "7211": 0
+    },
+    "stoploss": {
+      "stoploss": -0.345
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2022-07-22 15:34:07.490260+00:00"
+}

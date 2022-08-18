@@ -1,0 +1,33 @@
+{
+  "strategy_name": "ReinforcedAverageStrategy",
+  "params": {
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": 0.01,
+      "trailing_stop_positive_offset": 0.02,
+      "trailing_only_offset_is_reached": false
+    },
+    "buy": {
+      "maMedium_period": 63,
+      "maShort_period": 21,
+      "sma_period": 33
+    },
+    "sell": {
+      "maMedium_period_sell": 8,
+      "maShort_period_sell": 18,
+      "sell_profit_only_param": false
+    },
+    "protection": {},
+    "roi": {
+      "0": 0.6930000000000001,
+      "1664": 0.251,
+      "2852": 0.122,
+      "7167": 0
+    },
+    "stoploss": {
+      "stoploss": -0.029
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2022-07-20 15:13:20.038216+00:00"
+}

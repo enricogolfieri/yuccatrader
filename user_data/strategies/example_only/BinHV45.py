@@ -31,12 +31,6 @@ class BinHV45(IStrategy):
     buy_closedelta = IntParameter(low=15, high=20, default=30, space='buy', optimize=True)
     buy_tail = IntParameter(low=20, high=30, default=30, space='buy', optimize=True)
 
-    # Hyperopt parameters
-    buy_params = {
-        "buy_bbdelta": 7,
-        "buy_closedelta": 17,
-        "buy_tail": 25,
-    }
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         bollinger = qtpylib.bollinger_bands(dataframe['close'], window=40, stds=2)

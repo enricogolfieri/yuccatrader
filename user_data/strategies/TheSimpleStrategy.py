@@ -7,18 +7,11 @@ from pandas import DataFrame
 
 import talib.abstract as ta
 import freqtrade.vendor.qtpylib.indicators as qtpylib
+from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,IStrategy, IntParameter)
 
 
-class Simple(IStrategy):
-    """
+class TheSimpleStrategy(IStrategy):
 
-    author@: Gert Wohlgemuth
-
-    idea:
-        this strategy is based on the book, 'The Simple Strategy' and can be found in detail here:
-
-        https://www.amazon.com/Simple-Strategy-Powerful-Trading-Futures-ebook/dp/B00E66QPCG/ref=sr_1_1?ie=UTF8&qid=1525202675&sr=8-1&keywords=the+simple+strategy
-    """
 
     # Minimal ROI designed for the strategy.
     # adjust based on market conditions. We would recommend to keep it low for quick turn arounds
@@ -34,18 +27,27 @@ class Simple(IStrategy):
     # Optimal timeframe for the strategy
     timeframe = '5m'
 
+    # --- Define spaces for the indicators ---
+    macd_fast_period = IntParameter(low=10, high=20, default=12, space='buy', optimize=True)
+    macd_slow_period= IntParameter(low=20, high=35, default=26, space='buy', optimize=True)
+    macd_signal_period = IntParameter(low=5, high=15, default=9, space='sell', optimize=True)
+
+    bbwindow = IntParameter(low=8, high=20, default=12, space='sell', optimize=True)
+    bbdeviation = DecimalParameter(low=1, high=3, default=2, space='sell', optimize=True)
+
+    sell_rsi = IntParameter(75, 95, default=85, space="sell")
+
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         # MACD
-        macd = ta.MACD(dataframe)
+        macd = ta.MACD(dataframe, fastperiod=self.macd_fast_period.value, slowperiod=self.macd_slow_period.value, signalperiod=self.macd_signal_period.value)
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
-        dataframe['macdhist'] = macd['macdhist']
 
         # RSI
         dataframe['rsi'] = ta.RSI(dataframe, timeperiod=7)
 
         # required for graphing
-        bollinger = qtpylib.bollinger_bands(dataframe['close'], window=12, stds=2)
+        bollinger = qtpylib.bollinger_bands(dataframe['close'], window=self.bbwindow.value, stds=self.bbdeviation.value)
         dataframe['bb_lowerband'] = bollinger['lower']
         dataframe['bb_upperband'] = bollinger['upper']
         dataframe['bb_middleband'] = bollinger['mid']
@@ -58,8 +60,7 @@ class Simple(IStrategy):
                 (
                         (dataframe['macd'] > 0)  # over 0
                         & (dataframe['macd'] > dataframe['macdsignal'])  # over signal
-                        & (dataframe['bb_upperband'] > dataframe['bb_upperband'].shift(1))  # pointed up
-                        & (dataframe['rsi'] > 70)  # optional filter, need to investigate
+                        & (dataframe['b'])
                 )
             ),
             'buy'] = 1
@@ -69,7 +70,7 @@ class Simple(IStrategy):
         # different strategy used for sell points, due to be able to duplicate it to 100%
         dataframe.loc[
             (
-                (dataframe['rsi'] > 80)
+                (dataframe['rsi'] > self.sell_rsi.value)  # over sell_rsi
             ),
             'sell'] = 1
         return dataframe

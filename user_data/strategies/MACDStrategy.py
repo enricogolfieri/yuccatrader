@@ -1,35 +1,17 @@
 
 # --- Do not remove these libs ---
-from freqtrade.strategy import IStrategy
-from freqtrade.strategy import CategoricalParameter, DecimalParameter, IntParameter
+from freqtrade.strategy.interface import IStrategy
+from typing import Dict, List
+from functools import reduce
 from pandas import DataFrame
 # --------------------------------
+from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,IStrategy, IntParameter)
 
 import talib.abstract as ta
+import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
 class MACDStrategy(IStrategy):
-    """
-    author@: Gert Wohlgemuth
-
-    idea:
-
-        uptrend definition:
-            MACD above MACD signal
-            and CCI < -50
-
-        downtrend definition:
-            MACD below MACD signal
-            and CCI > 100
-
-    freqtrade hyperopt --strategy MACDStrategy --hyperopt-loss <someLossFunction> --spaces buy sell
-
-    The idea is to optimize only the CCI value.
-    - Buy side: CCI between -700 and 0
-    - Sell side: CCI between 0 and 700
-
-    """
-    INTERFACE_VERSION = 2
 
     # Minimal ROI designed for the strategy.
     # This attribute will be overridden if the config file contains "minimal_roi"
@@ -47,26 +29,16 @@ class MACDStrategy(IStrategy):
     # Optimal timeframe for the strategy
     timeframe = '5m'
 
-    buy_cci = IntParameter(low=-700, high=0, default=-50, space='buy', optimize=True)
-    sell_cci = IntParameter(low=0, high=700, default=100, space='sell', optimize=True)
-
-    # Buy hyperspace params:
-    buy_params = {
-        "buy_cci": -48,
-    }
-
-    # Sell hyperspace params:
-    sell_params = {
-        "sell_cci": 687,
-    }
+    # --- Define spaces for the indicators ---
+    macd_fast_period = IntParameter(low=10, high=20, default=12, space='buy', optimize=True)
+    macd_slow_period= IntParameter(low=20, high=35, default=26, space='buy', optimize=True)
+    macd_signal_period = IntParameter(low=5, high=15, default=9, space='sell', optimize=True)
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
-        macd = ta.MACD(dataframe)
+        macd = ta.MACD(dataframe, fastperiod=self.macd_fast_period.value, slowperiod=self.macd_slow_period.value, signalperiod=self.macd_signal_period.value)
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
-        dataframe['macdhist'] = macd['macdhist']
-        dataframe['cci'] = ta.CCI(dataframe)
 
         return dataframe
 
@@ -78,9 +50,8 @@ class MACDStrategy(IStrategy):
         """
         dataframe.loc[
             (
-                (dataframe['macd'] > dataframe['macdsignal']) &
-                (dataframe['cci'] <= self.buy_cci.value) &
-                (dataframe['volume'] > 0)  # Make sure Volume is not 0
+                (dataframe['macd'] > 0) &
+                (dataframe['macd'] > dataframe['macdsignal'])
             ),
             'buy'] = 1
 
@@ -94,10 +65,7 @@ class MACDStrategy(IStrategy):
         """
         dataframe.loc[
             (
-                (dataframe['macd'] < dataframe['macdsignal']) &
-                (dataframe['cci'] >= self.sell_cci.value) &
-                (dataframe['volume'] > 0)  # Make sure Volume is not 0
+                (dataframe['macd'] < dataframe['macdsignal'])
             ),
             'sell'] = 1
-
         return dataframe

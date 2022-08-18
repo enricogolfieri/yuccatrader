@@ -5,20 +5,13 @@ from typing import Dict, List
 from functools import reduce
 from pandas import DataFrame
 # --------------------------------
+from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,IStrategy, IntParameter)
 
 import talib.abstract as ta
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
-class MACDStrategy_crossed(IStrategy):
-    """
-        buy:
-            MACD crosses MACD signal above
-            and CCI < -50
-        sell:
-            MACD crosses MACD signal below
-            and CCI > 100
-    """
+class MacdCciCrossedStrategy(IStrategy):
 
     # Minimal ROI designed for the strategy.
     # This attribute will be overridden if the config file contains "minimal_roi"
@@ -36,9 +29,13 @@ class MACDStrategy_crossed(IStrategy):
     # Optimal timeframe for the strategy
     timeframe = '5m'
 
+    macd_fast_period = IntParameter(low=12, high=16, default=12, space='buy', optimize=True)
+    macd_slow_period = IntParameter(low=20, high=30, default=26, space='buy', optimize=True)
+    macd_signal_period = IntParameter(low=5, high=10, default=9, space='buy', optimize=True)
+
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
-        macd = ta.MACD(dataframe)
+        macd = ta.MACD(dataframe, fastperiod=self.macd_fast_period.value, slowperiod=self.macd_slow_period.value, signalperiod=self.macd_signal_period.value)
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
         dataframe['macdhist'] = macd['macdhist']

@@ -1,0 +1,30 @@
+{
+  "strategy_name": "RSIStrategy",
+  "params": {
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": null,
+      "trailing_stop_positive_offset": 0.0,
+      "trailing_only_offset_is_reached": false
+    },
+    "buy": {
+      "buy_rsi": 25
+    },
+    "sell": {
+      "rsi_period": 8,
+      "sell_rsi": 61
+    },
+    "protection": {},
+    "roi": {
+      "0": 0.518,
+      "964": 0.061,
+      "2852": 0.03,
+      "7916": 0
+    },
+    "stoploss": {
+      "stoploss": -0.337
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2022-07-22 15:09:57.546666+00:00"
+}

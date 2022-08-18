@@ -1,35 +1,17 @@
 
 # --- Do not remove these libs ---
-from freqtrade.strategy.interface import IStrategy
-from typing import Dict, List
-from functools import reduce
+from freqtrade.strategy import IStrategy
+from freqtrade.strategy import CategoricalParameter, DecimalParameter, IntParameter
 from pandas import DataFrame
 # --------------------------------
+from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,IStrategy, IntParameter)
 
 import talib.abstract as ta
-import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 
-class ASDTSRockwellTrading(IStrategy):
-    """
-    trading strategy based on the concept explained at https://www.youtube.com/watch?v=mmAWVmKN4J0
-    author@: Gert Wohlgemuth
+class MacdCciStrategy(IStrategy):
 
-    idea:
-
-        uptrend definition:
-            MACD above 0 line AND above MACD signal
-
-
-        downtrend definition:
-            MACD below 0 line and below MACD signal
-
-        sell definition:
-            MACD below MACD signal
-
-    it's basically a very simple MACD based strategy and we ignore the definition of the entry and exit points in this case, since the trading bot, will take of this already
-
-    """
+    INTERFACE_VERSION = 2
 
     # Minimal ROI designed for the strategy.
     # This attribute will be overridden if the config file contains "minimal_roi"
@@ -47,12 +29,19 @@ class ASDTSRockwellTrading(IStrategy):
     # Optimal timeframe for the strategy
     timeframe = '5m'
 
+    buy_cci = IntParameter(low=-700, high=0, default=-50, space='buy', optimize=True)
+    sell_cci = IntParameter(low=0, high=700, default=100, space='sell', optimize=True)
+    macd_fast_period = IntParameter(low=12, high=16, default=12, space='buy', optimize=True)
+    macd_slow_period = IntParameter(low=20, high=30, default=26, space='buy', optimize=True)
+    macd_signal_period = IntParameter(low=5, high=10, default=9, space='buy', optimize=True)
+
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
-        macd = ta.MACD(dataframe)
+        macd = ta.MACD(dataframe, fastperiod=self.macd_fast_period.value, slowperiod=self.macd_slow_period.value, signalperiod=self.macd_signal_period.value)
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
         dataframe['macdhist'] = macd['macdhist']
+        dataframe['cci'] = ta.CCI(dataframe)
 
         return dataframe
 
@@ -64,8 +53,9 @@ class ASDTSRockwellTrading(IStrategy):
         """
         dataframe.loc[
             (
-                (dataframe['macd'] > 0) &
-                (dataframe['macd'] > dataframe['macdsignal'])
+                (dataframe['macd'] > dataframe['macdsignal']) &
+                (dataframe['cci'] <= self.buy_cci.value) &
+                (dataframe['volume'] > 0)  # Make sure Volume is not 0
             ),
             'buy'] = 1
 
@@ -79,7 +69,10 @@ class ASDTSRockwellTrading(IStrategy):
         """
         dataframe.loc[
             (
-                (dataframe['macd'] < dataframe['macdsignal'])
+                (dataframe['macd'] < dataframe['macdsignal']) &
+                (dataframe['cci'] >= self.sell_cci.value) &
+                (dataframe['volume'] > 0)  # Make sure Volume is not 0
             ),
             'sell'] = 1
+
         return dataframe

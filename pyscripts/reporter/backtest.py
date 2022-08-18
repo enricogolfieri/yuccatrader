@@ -7,20 +7,35 @@ from prettytable import PrettyTable
 import reporter.project as pr 
 import reporter.fileutils as fs
 
+@pr.logdebug
+@pr.exception("Backtest - Pretty Print")
+def pretty_print(df,path):
+    with open(path, 'w+') as filewriter:        
+        filewriter.write(tabulate(df, tablefmt='psql'))
+        pr.logger.info(f"Backtest - path {path}, saved")
+
+
+comparison_fields = ["key","trades","timeframe","timerange","market_change","timeframe_detail","profit_sum","profit_sum_pct","profit_total_abs","profit_total","profit_total_pct","duration_avg","wins","draws","losses","max_drawdown_account","max_drawdown_abs"]
+
+def _filter_by_comparison_fields(dict):
+    '''
+    filter by dict
+    '''
+    return {k:dict[k] for k in comparison_fields}
+
+def _initdf():
+    '''
+    init fields
+    '''
+    return {k:[] for k in comparison_fields}
+ 
+_TEST_NAME="test_name"
 
 class Backtest:
 
-    @staticmethod
-    def strategy_comparison_fields():
-        return ["key","trades","timeframe","timerange","timeframe_detail","profit_sum","profit_sum_pct","profit_total_abs","profit_total","profit_total_pct","duration_avg","wins","draws","losses","max_drawdown_account","max_drawdown_abs"]
-
-    def __init__(self,pairs,test_name):
-        self.__test_config = dict()
-        self.__test_config['pairs'] = pairs
-        self.__test_config['test_name'] = test_name
-
-        table = { k:[] for k in Backtest.strategy_comparison_fields()}
-        table["test_name"] = []
+    def __init__(self):
+        table = _initdf()
+        table[_TEST_NAME] = []
         self.__df= pd.DataFrame(table)
 
 
@@ -41,11 +56,8 @@ class Backtest:
         return self.__df.sort(index)
 
     @pr.logdebug
-    @pr.exception("Backtest - Pretty Print")
     def pretty_print(self,path):
-        with open(path, 'w+') as filewriter:        
-            filewriter.write(tabulate(self.__df, tablefmt='psql'))
-            pr.logger.info(f"Backtest - path {path}, saved")
+        pretty_print(self.__df,path)
 
 
     @pr.logdebug
@@ -66,22 +78,18 @@ class Backtest:
         return self.__df
 
     @pr.logdebug
-    def add_strategy_result(self,result_dataframe): #dataframe
-        table = { k: result_dataframe[k]for k in Backtest.strategy_comparison_fields() }
-
+    def add_strategy_result(self,result_dataframe,test_name): #dataframe
+        table = _filter_by_comparison_fields(result_dataframe)
         #adding a colum with test name per strategy (this simplify the storage of information when gathering per strategy)
-        test_name_list = [self.__test_config['test_name'] in result_dataframe["key"]]
-        table["test_name"] = test_name_list
-
+        table[_TEST_NAME] = [test_name]
         df = pd.DataFrame(table)
         self.__df = pd.concat([self.__df ,df])
 
 
-
 class BackTestCollection:
     def __init__(self):
-        table = { k:[] for k in Backtest.strategy_comparison_fields()}
-        table["test_name"] = []
+        table = _initdf()
+        table[_TEST_NAME] = []
         self.__df= pd.DataFrame(table)
 
     @pr.logdebug
@@ -91,8 +99,8 @@ class BackTestCollection:
 
     @pr.logdebug
     def iterate_by_backtest(self):
-        for data in self.__df.groupby("test_name").iterrows():
-            return data 
+        for name,data in self.__df.groupby(_TEST_NAME):
+            yield data 
 
     @pr.logdebug
     def iterate_by_strategy(self):
@@ -102,6 +110,7 @@ class BackTestCollection:
 
 
 #load strategy
+    
 @pr.logdebug
 def load_backtest(backtests_result_path,test_name):
 
@@ -111,8 +120,7 @@ def load_backtest(backtests_result_path,test_name):
         strategy_name = stat["strategy_comparison"][0]['key']
         return stat['strategy'][strategy_name][key]
 
-    is_init = False
-    backtest =Backtest("",test_name)
+    backtest =Backtest()
     nloaded = 0
     nfiles = 0
     for filename in os.listdir(path):
@@ -121,18 +129,16 @@ def load_backtest(backtests_result_path,test_name):
             pr.logger.info(f"LOAD BACKTEST - path {path.joinpath(filename)}, loading")
 
             loaded_stats = load_backtest_stats(path.joinpath(filename))
+
             if 'strategy_comparison' in loaded_stats:
                 nloaded = nloaded + 1
-                if not is_init:
-                    pairs = extract(loaded_stats,'pairlist')
-                    test_name = os.path.splitext(filename)[0]
-                    backtest = Backtest(pairs, test_name)
-                    is_init = True
+
                 stats = loaded_stats["strategy_comparison"][0]
                 stats['timeframe']    = extract(loaded_stats,'timeframe')
                 stats['timeframe_detail'] = extract(loaded_stats,'timeframe_detail')
                 stats['timerange']    = extract(loaded_stats,'timerange') 
-                backtest.add_strategy_result(stats)
+                stats['market_change'] = extract(loaded_stats,'market_change')
+                backtest.add_strategy_result(stats,test_name)
 
     pr.logger.info(f"LOAD BACKTEST - path {path}, scraped files: {nfiles}, loaded {nloaded}")
     return backtest

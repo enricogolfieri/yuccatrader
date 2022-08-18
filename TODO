@@ -1,0 +1,36 @@
+BACKTEST
+- automatic name
+- remove param name
+
+
+YCC
+- add periods
+    - 2019
+    - 2020
+    - 2021
+    - 2022
+    - all-time
+
+- store opt jsons into a folder based on name
+- add run : 
+    - run a strategy in dry-run with relative opt json
+    - probably is a matter of making a run.config where everything is linked properly and use that file 
+    
+- add official-test 
+    for every strategy:
+        for timeframe 1h,4h,12h:
+            - opt on 2019
+            - backtest on all-time
+            - opt on 2019+2020
+            - backtest on all-time 
+            ... 
+    report 
+
+LESS IMPORTANT 
+- readme 
+
+OPTIONAL
+- mongodb integration? maybe not needed but definitely cool idea
+
+
+

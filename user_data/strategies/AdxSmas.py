@@ -3,6 +3,7 @@ from freqtrade.strategy.interface import IStrategy
 from pandas import DataFrame
 import talib.abstract as ta
 import freqtrade.vendor.qtpylib.indicators as qtpylib
+from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,IStrategy, IntParameter)
 
 
 # --------------------------------
@@ -32,17 +33,26 @@ class AdxSmas(IStrategy):
     # Optimal timeframe for the strategy
     timeframe = '1h'
 
+
+    buy_adx = IntParameter(20, 75, default=25, space="buy")
+    sell_adx = IntParameter(10, 35, default=25, space="sell")
+    adx_timeperiod = IntParameter(7, 21, default=14, space="buy")
+    
+    sma_short_timeperiod = IntParameter(2, 20, default=3, space="buy")
+    sma_long_timeperiod = IntParameter(20, 80, default=25, space="buy")
+
+
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
-        dataframe['adx'] = ta.ADX(dataframe, timeperiod=14)
-        dataframe['short'] = ta.SMA(dataframe, timeperiod=3)
-        dataframe['long'] = ta.SMA(dataframe, timeperiod=6)
+        dataframe['adx'] = ta.ADX(dataframe, timeperiod=self.adx_timeperiod.value)
+        dataframe['short'] = ta.SMA(dataframe, timeperiod=self.sma_short_timeperiod.value)
+        dataframe['long'] = ta.SMA(dataframe, timeperiod=self.sma_long_timeperiod.value)
 
         return dataframe
 
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
-                    (dataframe['adx'] > 25) &
+                    (dataframe['adx'] > self.buy_adx.value) &
                     (qtpylib.crossed_above(dataframe['short'], dataframe['long']))
 
             ),
@@ -52,7 +62,7 @@ class AdxSmas(IStrategy):
     def populate_sell_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[
             (
-                    (dataframe['adx'] < 25) &
+                    (dataframe['adx'] < self.sell_adx.value) &
                     (qtpylib.crossed_above(dataframe['long'], dataframe['short']))
 
             ),

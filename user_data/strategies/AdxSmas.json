@@ -1,0 +1,32 @@
+{
+  "strategy_name": "AdxSmas",
+  "params": {
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": null,
+      "trailing_stop_positive_offset": 0.0,
+      "trailing_only_offset_is_reached": false
+    },
+    "buy": {
+      "adx_timeperiod": 17,
+      "buy_adx": 38,
+      "sma_long_timeperiod": 33,
+      "sma_short_timeperiod": 9
+    },
+    "sell": {
+      "sell_adx": 28
+    },
+    "protection": {},
+    "roi": {
+      "0": 0.585,
+      "1374": 0.284,
+      "4229": 0.08,
+      "5610": 0
+    },
+    "stoploss": {
+      "stoploss": -0.336
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2022-07-22 13:16:16.268045+00:00"
+}

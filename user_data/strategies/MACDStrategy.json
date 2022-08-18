@@ -1,0 +1,33 @@
+{
+  "strategy_name": "MACDStrategy",
+  "params": {
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": null,
+      "trailing_stop_positive_offset": 0.0,
+      "trailing_only_offset_is_reached": false
+    },
+    "buy": {
+      "macd_fast_period_buy": 12,
+      "macd_signal_period_buy": 10,
+      "macd_slow_period_buy": 20
+    },
+    "sell": {
+      "macd_fast_period_sell": 12,
+      "macd_signal_period_sell": 6,
+      "macd_slow_period_sell": 27
+    },
+    "protection": {},
+    "roi": {
+      "0": 0.643,
+      "1477": 0.277,
+      "2389": 0.11,
+      "6654": 0
+    },
+    "stoploss": {
+      "stoploss": -0.091
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2022-07-22 14:38:07.665701+00:00"
+}

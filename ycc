@@ -2,6 +2,7 @@
 uptrend="20210715-20211118"
 downtrend="20211118-20220515"
 mm2021="20210515-20220515"
+mm2020="20200515-20210701"
 up="20210127-20210221"
 down="20210509-20210524"
 side="20210518-20210610"
@@ -16,8 +17,8 @@ backtest()
 	[ -z "$__name" ] && echo "missing --name" && exit;
 	[ -z "$__timeframe" ] && echo "missing --timeframe" && exit;
 	[ -z "$__timerange" ] && echo "missing timerange" && exit;
-	[ -z "$__timeframe_detail" ] && echo "missing --timeframe-detail" && exit;
 
+	echo $__warning_timeframe_detail
 
 	__reports_args=;
 	if [ -n "$__official" ]; 
@@ -25,15 +26,15 @@ backtest()
 	fi
 
 	#preparing folder in backtest_results 
-	__dir="$__volume/"backtest_results"/$__name"
+	__dir="$__volume"/"backtest_results"/"$__name"
 	mkdir -p $__dir
 
 	#run comand (either run_all_strategies or just one if one is selected)
 	if [ -z "$__strategy" ] 
 	then
-		__run_all_strategies
+		__backtest_all_strategies
 	else
-		__run_experiment $__strategy
+		__backtest $__strategy
 	fi
 
 	report $__reports_args
@@ -69,14 +70,24 @@ obacktest()
 
 }
 
+opt()
+{
+	__activate_python_env
+
+	[ -z "$__strategy" ] && echo "missing --strategy" && exit;
+	[ -z "$__timeframe" ] && echo "missing --timeframe" && exit;
+	[ -z "$__timerange" ] && echo "missing timerange" && exit;
+	[ -z "$__timeframe_detail" ] && echo "missing --timeframe-detail" && exit;
+
+	__freqtrade__cmd="freqtrade hyperopt --config $__config --timerange $__timerange --strategy $__strategy --timeframe $__timeframe --userdir $__volume  $__args";
+	$__cmd_prefix $__freqtrade__cmd	
+}
 
 report()
 {
 	__activate_python_env
 
-	[ -z "$__name" ] && echo "missing --name" && exit;
-
-	python "pyscripts/csv_report.py" -n $__name $@
+	$__cmd_prefix python "pyscripts/csv_report.py" $@
 }
 
 bulkdownload()
@@ -91,10 +102,6 @@ bulkdownload()
 	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
 }
 
-opt()
-{
-	echo "not implemented yet"
-}
 
 help(){
     echo
@@ -147,16 +154,16 @@ __set()
 	if [ -z "$__cmd" ]; then 
 		__cmd=$1;
 	else
-		__args+=($1);
+		__args="$__args $1";
 	fi
 }
 
-__run_experiment()
+__backtest()
 {
 	# $1 = strategy name 
 
 	#define command (we always enable position stacking)
-	__cmd="freqtrade backtesting --config $__config --timerange $__timerange --strategy $1 --enable-position-stacking --timeframe $__timeframe --timeframe-detail $__timeframe_detail --backtest-filename $__dir/$1.json $__args --userdir $__volume";
+	__cmd="freqtrade backtesting --config $__config --timerange $__timerange --strategy $1 --timeframe $__timeframe --timeframe-detail $__timeframe_detail --backtest-filename $__dir/$1.json $__args --userdir $__volume $__args";
 
 	#store the command that lead to the result (this is essential to compare different tests)
 	if [ "$__cmd_prefix" == "echo" ]
@@ -177,7 +184,7 @@ __run_experiment()
 	fi
 }
 
-__run_all_strategies()
+__backtest_all_strategies()
 {
 	#run 1 test per strategy
 	for file in user_data/strategies/*; do
@@ -187,7 +194,7 @@ __run_all_strategies()
 			strategy=${strategy##*/}
 
 			echo "Testing $strategy"
-			__run_experiment $strategy
+			__backtest $strategy
 		fi
 	done
 }
@@ -210,7 +217,8 @@ __parse_args()
 	__name=;
 	__timerange=;
 	__timeframe=;
-	__timeframe_detail=5m;
+	__timeframe_detail='5m';
+	__warning_timeframe_detail="WARNING - timeframe detail set to 5m"
 	__strategy=;
 	__config="$__volume/configs/bt/basic.json";
 	__args=();
@@ -231,12 +239,14 @@ __parse_args()
 				__strategy=$2
 				shift 2;		
 			;;
+
 			--timeframe)
 				__timeframe=$2;
 				shift 2;
 			;;
 			--timeframe-detail)
 				__timeframe_detail=$2;
+				__warning_timeframe_detail;
 				shift 2;
 			;;
 
@@ -264,6 +274,10 @@ __parse_args()
 				__timerange="$mm2021"
 				shift
 			;;
+			--mm2020)
+				__timerange="$mm2020"
+				shift
+			;;
 			--basic)
 				__config="$__volume/configs/bt/basic.json"
 				shift
@@ -285,4 +299,4 @@ __parse_args()
 
 #run
 __parse_args $@
-$__cmd
+$__cmd 

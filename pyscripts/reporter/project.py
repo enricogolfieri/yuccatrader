@@ -31,8 +31,11 @@ def pyscripts(subdir = None):
 
 def __compose_sub_userdata(mainfolder,subfolder=None,filename = None):
     
-    if subfolder:
+    if subfolder:    
         path = userdata(mainfolder).joinpath(subfolder).resolve()
+        #if does not exist create it 
+        if not os.path.exists(path):
+            os.makedirs(path)
     else:
         path =  userdata(mainfolder).resolve()      
     if not os.path.exists(path):

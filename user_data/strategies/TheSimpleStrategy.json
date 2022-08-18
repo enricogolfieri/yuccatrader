@@ -1,0 +1,34 @@
+{
+  "strategy_name": "TheSimpleStrategy",
+  "params": {
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": null,
+      "trailing_stop_positive_offset": 0.0,
+      "trailing_only_offset_is_reached": false
+    },
+    "buy": {
+      "buy_rsi": 24,
+      "macd_fast_period": 14,
+      "macd_slow_period": 31
+    },
+    "sell": {
+      "bbdeviation": 1.341,
+      "bbwindow": 13,
+      "macd_signal_period": 10,
+      "sell_rsi": 94
+    },
+    "protection": {},
+    "roi": {
+      "0": 0.7010000000000001,
+      "1408": 0.14200000000000002,
+      "2326": 0.078,
+      "3377": 0
+    },
+    "stoploss": {
+      "stoploss": -0.03
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2022-07-22 14:51:55.504106+00:00"
+}

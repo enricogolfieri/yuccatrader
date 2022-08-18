@@ -27,20 +27,6 @@ import numpy as np
 
 
 class Heracles(IStrategy):
-    ########################################## RESULT PASTE PLACE ##########################################
-    # 10/100:     25 trades. 18/4/3 Wins/Draws/Losses. Avg profit   5.92%. Median profit   6.33%. Total profit  0.04888306 BTC (  48.88Σ%). Avg duration 4 days, 6:24:00 min. Objective: -11.42103
-
-    # Buy hyperspace params:
-    buy_params = {
-        "buy_crossed_indicator_shift": 9,
-        "buy_div_max": 0.75,
-        "buy_div_min": 0.16,
-        "buy_indicator_shift": 15,
-    }
-
-    # Sell hyperspace params:
-    sell_params = {
-    }
 
     # ROI table:
     minimal_roi = {

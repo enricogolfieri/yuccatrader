@@ -1,0 +1,37 @@
+{
+  "strategy_name": "ADXMomentum",
+  "params": {
+    "trailing": {
+      "trailing_stop": false,
+      "trailing_stop_positive": null,
+      "trailing_stop_positive_offset": 0.0,
+      "trailing_only_offset_is_reached": false
+    },
+    "buy": {
+      "adx_timeperiod": 14,
+      "buy_adx": 29,
+      "buy_mom": 20,
+      "buy_plus_di": 30,
+      "minus_di_timeperiod": 22,
+      "mom_timeperiod": 21,
+      "plus_di_timeperiod": 20
+    },
+    "sell": {
+      "sell_adx": 30,
+      "sell_minus_di": 21,
+      "sell_mom": -19
+    },
+    "protection": {},
+    "roi": {
+      "0": 0.5820000000000001,
+      "925": 0.193,
+      "2672": 0.088,
+      "3257": 0
+    },
+    "stoploss": {
+      "stoploss": -0.345
+    }
+  },
+  "ft_stratparam_v": 1,
+  "export_time": "2022-07-22 13:54:45.286992+00:00"
+}
