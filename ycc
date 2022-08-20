@@ -3,15 +3,20 @@ uptrend="20210715-20211118"
 downtrend="20211118-20220515"
 mm2021="20210515-20220515"
 mm2020="20200515-20210701"
-up="20210127-20210221"
-down="20210509-20210524"
-side="20210518-20210610"
+
+t2019="20190131-20191231" #till 2019
+t2020="20190131-20201231" #till 2020
+t2021="20190131-20211231" #till 2021
+all_time="20190101-"
 
 __volume='./user_data'
 __env=".env"
 
 backtest()
 {
+	#name is used to set the directory name 
+	#the test name is  strategy+current timestamp 
+	#it is ok to have more tests under the same name because one name represent some settings
 	__activate_python_env
 	#check values
 	[ -z "$__name" ] && echo "missing --name" && exit;
@@ -43,12 +48,19 @@ backtest()
 #official backtest
 obacktest()
 { 
+	#name: $suffix_timerange_timeframe_version, the name of the strategy it's already in the folder. 
+	#the change of version corresponds to the change of any possible settings (form pairs used to different loss in optimization or epochs)
+	#version increase only if we have at least one strategy with better results 
+	#version change is reported in readme
+
+	[ -z "$__version" ] && echo "missing --version" && exit;
+	[ -z "$__suffix" ] && echo "missing --suffix" && exit;
 
 	__activate_python_env
 
 	#list of tests name 
-	__tests=( "uptrend:$uptrend" "downtrend:$downtrend" "mm2021:$mm2021" "up:$up" "down:$down" "side:$side" )
-	__timeframes=( "1h" "4h" "12h" )
+	__tests=( "uptrend:$uptrend" "downtrend:$downtrend" "all_time:$all_time" )
+	__timeframes=( "4h" "12h" )
 
 	echo "WARNING: this is an official backtest, it will run with timeframe_details=5m over several timeranges"
 	sleep 5
@@ -58,12 +70,12 @@ obacktest()
 	__official=true;
 	for test in "${__tests[@]}" ; do
 		for timeframe in "${__timeframes[@]}" ; do
-			testname="${test%%:*}"
-			timerange="${test##*:}"
+			testname="${test%%:*}"  #key
+			timerange="${test##*:}" #value
 			__timeframe_detail='5m'
 			__timerange=$timerange
 			__timeframe=$timeframe
-			__name="$testname""_""$__timeframe"
+			__name="$__suffix""_""$testname""_""$__timeframe""_""$__version"
 			backtest
 		done
 	done
@@ -83,6 +95,61 @@ opt()
 	$__cmd_prefix $__freqtrade__cmd	
 }
 
+new_version()
+{
+	__activate_python_env
+	[ -z "$__version" ] && echo "missing --version" && exit;
+
+	__tests=( "t2019":$t2019 "t2020":$t2020 "t2021":$t2021 "all_time":$all_time )
+
+	#1) opt for all strategies and timeframe 4h 
+	#2) run obacktest (official backtest) for 3 timeframes (1h, 4h, 12h) and some timeranges (t2019, t2020, t2021, all_time) 
+	#3) copy strategy.json into opt folder and rename it to strategy_$version.json 
+
+	for test in "${__tests[@]}" ; do
+
+		testname="${test%%:*}"  #key
+		timerange="${test##*:}" #value
+		__timerange=$timerange
+
+		#run 1 test per strategy
+		for file in user_data/strategies/*.py; do
+			if [ -f "$file" ]
+			then
+					strategy=${file%.py}
+					strategy=${strategy##*/}
+
+					__timeframe_detail='5m'
+					__timeframe='4h'
+					__strategy=$strategy
+					echo "Optimizing $strategy"
+					opt
+			fi
+		done
+
+		#run official backtest for all timeframes and timeranges
+		__suffix=$testname
+		obacktest
+
+		#copy strategy.json into opt folder and rename it to strategy_$version.json
+		__move_version
+	done
+}
+
+__move_version()
+{
+	mkdir -p "user_data/versions/"
+	for file in user_data/strategies/*.py; do
+		if [ -f "$file" ]
+		then
+			strategy=${file%.py}
+			strategy=${strategy##*/}
+			__strategy=$strategy
+			$__cmd_prefix cp "user_data/strategies/$__strategy.json" "user_data/versions/$__strategy""_""$__suffix""_""$__version.json"
+		fi
+	done
+}
+
 report()
 {
 	__activate_python_env
@@ -93,13 +160,12 @@ report()
 bulkdownload()
 {
 	__activate_python_env
-	__timerange="20190101-"
+	__timerange=$all_time
 	echo "Start downloading ..."
 	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 1h ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 4h ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 12h ${__args[@]} ;
 }
 
 
@@ -139,6 +205,14 @@ setup()
 	$__cmd_prefix cd - 
 	$__cmd prefix pip install -r ./requirements.txt
 	#$__cmd_prefix rm -rf freqtrade
+}
+
+update()
+{
+	$__cmd_prefix cd freqtrade
+	$__cmd_prefix git checkout stable 
+	$__cmd_prefix git pull
+	$__cmd_prefix cd - 
 }
 
 version()
@@ -214,13 +288,14 @@ __parse_args()
 	__cmd=;
 	__cmd_prefix=;
 	__dir=;
-	__name=;
+	__suffix=;
+	__version=;
 	__timerange=;
 	__timeframe=;
 	__timeframe_detail='5m';
 	__warning_timeframe_detail="WARNING - timeframe detail set to 5m"
 	__strategy=;
-	__config="$__volume/configs/bt/basic.json";
+	__config="$__volume/configs/bt/top10.json";
 	__args=();
 
 	while [[ $# -gt 0 ]]; do
@@ -230,11 +305,14 @@ __parse_args()
 				shift
 			;;
 
-			--name)
-				__name=$2;
+			--suffix)
+				__suffix=$2;
 				shift 2;
 			;;
-
+			--version)
+				__version=$2;
+				shift 2;
+			;;
 			--strategy)
 				__strategy=$2
 				shift 2;		
@@ -284,6 +362,10 @@ __parse_args()
 			;;
 			--top10)
 				__config="$__volume/configs/bt/top10.json"
+				shift
+			;;
+			--correlation)
+				__config="$__volume/configs/bt/correlation.json"
 				shift
 			;;
 			*)

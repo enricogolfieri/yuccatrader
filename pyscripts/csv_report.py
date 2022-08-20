@@ -35,7 +35,7 @@ paths.logger.info(f"CSV-REPORT: start report generation")
 for dftest in backtest_collection.iterate_by_backtest():
     print( "##################################################################### ")
     print(dftest)
-    test_name = dftest.iloc[0]['key']
+    test_name = dftest.iloc[0]['test_name']
 
     dftest.to_csv(paths.backtest_reports(test_name,"report.csv",official=is_official))
     pretty_print(dftest,paths.backtest_reports(test_name,"report.txt",official=is_official))

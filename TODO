@@ -18,7 +18,7 @@ YCC
     
 - add official-test 
     for every strategy:
-        for timeframe 1h,4h,12h:
+        for timeframe 4h,12h:
             - opt on 2019
             - backtest on all-time
             - opt on 2019+2020
@@ -31,6 +31,17 @@ LESS IMPORTANT
 
 OPTIONAL
 - mongodb integration? maybe not needed but definitely cool idea
+
+v2.0
+- search uncorrelated cryptos:
+    -BTC 
+    -XTZ
+    -LINK
+    -ATOM
+    -ADA
+    
+
+
 
 
 
