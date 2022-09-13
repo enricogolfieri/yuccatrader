@@ -26,20 +26,22 @@ class MACDStrategy(IStrategy):
     # This attribute will be overridden if the config file contains "stoploss"
     stoploss = -0.3
 
-    # Optimal timeframe for the strategy
-    timeframe = '5m'
-
     # --- Define spaces for the indicators ---
     macd_fast_period = IntParameter(low=10, high=20, default=12, space='buy', optimize=True)
     macd_slow_period= IntParameter(low=20, high=35, default=26, space='buy', optimize=True)
     macd_signal_period = IntParameter(low=5, high=15, default=9, space='sell', optimize=True)
 
+    ema_slow_period = IntParameter(low=50, high=150, default=100, space='buy', optimize=True)
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
         macd = ta.MACD(dataframe, fastperiod=self.macd_fast_period.value, slowperiod=self.macd_slow_period.value, signalperiod=self.macd_signal_period.value)
+        ema_slow = ta.EMA(dataframe, timeperiod=self.ema_slow_period.value)
+        # support = (dataframe['close'] > dataframe['high'].rolling(60).max().shift())
+
+
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
-
+        dataframe['ema_slow'] = ema_slow
         return dataframe
 
     def populate_buy_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
@@ -51,6 +53,7 @@ class MACDStrategy(IStrategy):
         dataframe.loc[
             (
                 (dataframe['macd'] > 0) &
+                (dataframe['close'] > dataframe['ema_slow']) &
                 (dataframe['macd'] > dataframe['macdsignal'])
             ),
             'buy'] = 1
@@ -65,7 +68,8 @@ class MACDStrategy(IStrategy):
         """
         dataframe.loc[
             (
-                (dataframe['macd'] < dataframe['macdsignal'])
+                (dataframe['macd'] < dataframe['macdsignal']) &
+                (dataframe['close'] < dataframe['ema_slow'])
             ),
             'sell'] = 1
         return dataframe

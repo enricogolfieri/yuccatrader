@@ -5,6 +5,7 @@ from freqtrade.strategy import CategoricalParameter, DecimalParameter, IntParame
 from pandas import DataFrame
 # --------------------------------
 from freqtrade.strategy import (BooleanParameter, CategoricalParameter, DecimalParameter,IStrategy, IntParameter)
+import freqtrade.vendor.qtpylib.indicators as qtpylib
 
 import talib.abstract as ta
 
@@ -26,14 +27,14 @@ class MacdCciStrategy(IStrategy):
     # This attribute will be overridden if the config file contains "stoploss"
     stoploss = -0.3
 
-    # Optimal timeframe for the strategy
-    timeframe = '5m'
 
-    buy_cci = IntParameter(low=-700, high=0, default=-50, space='buy', optimize=True)
-    sell_cci = IntParameter(low=0, high=700, default=100, space='sell', optimize=True)
-    macd_fast_period = IntParameter(low=12, high=16, default=12, space='buy', optimize=True)
-    macd_slow_period = IntParameter(low=20, high=30, default=26, space='buy', optimize=True)
-    macd_signal_period = IntParameter(low=5, high=10, default=9, space='buy', optimize=True)
+    buy_cci = IntParameter(low=-70, high=-40, default=-50, space='buy', optimize=True)
+    sell_cci = IntParameter(low=80, high=130, default=100, space='sell', optimize=True)
+    cci_period = IntParameter(low=10, high=30, default=20, space='buy', optimize=True)
+
+    macd_fast_period = IntParameter(low=10, high=20, default=12, space='buy', optimize=True)
+    macd_slow_period= IntParameter(low=20, high=35, default=26, space='buy', optimize=True)
+    macd_signal_period = IntParameter(low=5, high=15, default=9, space='sell', optimize=True)
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
 
@@ -41,7 +42,7 @@ class MacdCciStrategy(IStrategy):
         dataframe['macd'] = macd['macd']
         dataframe['macdsignal'] = macd['macdsignal']
         dataframe['macdhist'] = macd['macdhist']
-        dataframe['cci'] = ta.CCI(dataframe)
+        dataframe['cci'] = ta.CCI(dataframe,timeperiod = self.cci_period.value)
 
         return dataframe
 

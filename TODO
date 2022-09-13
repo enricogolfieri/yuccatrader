@@ -1,44 +1,31 @@
 BACKTEST
-- automatic name
-- remove param name
+- fix private functions to accept $@ and not use $__args 
+- add version folder to store backtests 
+- add tmp backtest folder (and use the normal for only official tests)
+- limit number of strategy to 3 (no reason to test more of them at every version)
 
+REPORT
+- fix problem with report to official folder 
+- add plotting 
+- filter information to important ones 
 
-YCC
-- add periods
-    - 2019
-    - 2020
-    - 2021
-    - 2022
-    - all-time
+NEW version
+- add possibility to run new opt with different suffix (this will allow us to optimize up to 2000 iterations one strategy and add the version.json + official backtest )
 
-- store opt jsons into a folder based on name
-- add run : 
-    - run a strategy in dry-run with relative opt json
-    - probably is a matter of making a run.config where everything is linked properly and use that file 
-    
-- add official-test 
-    for every strategy:
-        for timeframe 4h,12h:
-            - opt on 2019
-            - backtest on all-time
-            - opt on 2019+2020
-            - backtest on all-time 
-            ... 
-    report 
+TAG
+- add command to tag 
+- shall i push all official test results (only json) or report (either one of the two, no reason to push both). S
+- So far I am oriented to backtest results since i want to cap the amount of strategies to 3
 
 LESS IMPORTANT 
 - readme 
+- optimized.json move to /version/suffix/timeframe so i can create a run function and given --suffix --timeframe --version it will load directly the .json optimized. 
+  It is not better or worse, just more intuitive given the format of ./ycc 
 
 OPTIONAL
 - mongodb integration? maybe not needed but definitely cool idea
 
-v2.0
-- search uncorrelated cryptos:
-    -BTC 
-    -XTZ
-    -LINK
-    -ATOM
-    -ADA
+
     
 
 

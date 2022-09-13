@@ -48,7 +48,7 @@ class Heracles(IStrategy):
     buy_div_min = DecimalParameter(0, 1, default=0.16, decimals=2, space='buy')
     buy_div_max = DecimalParameter(0, 1, default=0.75, decimals=2, space='buy')
     buy_indicator_shift = IntParameter(0, 20, default=16, space='buy')
-    buy_crossed_indicator_shift = IntParameter(0, 20, default=9, space='buy')
+    buy_crossed_indicator_shift = IntParameter(0, 20, default=9, space='sell')
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe = dropna(dataframe)
