@@ -15,99 +15,118 @@ __env=".env"
 
 backtest()
 {
-	#name is used to set the directory name 
 	#the test name is  strategy+current timestamp 
 	#it is ok to have more tests under the same name because one name represent some settings
-	__activate_python_env
-	#check values
-	[ -z "$__timeframe" ] && echo "missing --timeframe" && exit;
-	[ -z "$__timerange" ] && echo "missing timerange" && exit;
-	[ -z "$__suffix" ] && echo "missing --suffix" && exit;
 
-	__name="$__suffix""_""$__timeframe""_""$__version"
-
-	#if not strategy is defined we enable all strategy
-	#we define __allstrategy for functions that define one strategy but still want to test all of them (like new_version)
-	[ -z "$__strategy" ] && __allstrategy=true;
-
-	echo $__warning_timeframe_detail
-
+	__parse_args $@;
 	__reports_args=;
+
+	[ -z "$__strategy" ] && echo "[backest] missing --strategy" && exit;
+	[ -z "$__timeframe" ] && echo "[backest] missing --timeframe" && exit;
+	[ -z "$__timerange" ] && echo "[backest] missing --timerange" && exit;
+	[ -z "$__suffix" ] && echo "[backest] missing --suffix" && exit;
+
+	local backport_dir="$__volume"/"backtest_tmp_results";
 	if [ -n "$__official" ]; then 
 		__reports_args="--official"; 
+		local backport_dir="$__volume"/"backtest_results";
 	fi
 
-	#preparing folder in backtest_results 
-	__dir="$__volume"/"backtest_results"/"$__name"
-	mkdir -p $__dir
+	#create backtest_name
+	local __name="$__suffix""_""$__timerange_name""_""$__timeframe""_""$__version"
+	local dir="$backport_dir"/"$__name"
+	mkdir -p $dir
 
-	#run comand (either run_all_strategies or just one if one is selected)
-	if [ -n "$__allstrategy" ] 
+	#define command (we always enable position stacking)
+	local freqtrade__cmd="freqtrade backtesting --config $__config --timerange $__timerange --strategy $__strategy --timeframe $__timeframe --timeframe-detail $__timeframe_detail --backtest-filename $dir/$__strategy.json $__extra_args --userdir $__volume";
+
+	#run command and store report (just because we can)
+	if [ "$__cmd_prefix" == "echo" ]
 	then
-		__backtest_all_strategies
+		echo $freqtrade__cmd '>' "$dir/$__strategy.report"
 	else
-		__backtest $__strategy
+		$freqtrade__cmd > "$dir/$__strategy.report"
 	fi
 
-	report $__reports_args
+	#report $__reports_args
 }
 
 #official backtest
 obacktest()
 { 
-	#name: $suffix_timerange_timeframe_version, the name of the strategy it's already in the folder. 
 	#the change of version corresponds to the change of any possible settings (form pairs used to different loss in optimization or epochs)
 	#version increase only if we have at least one strategy with better results 
 	#version change is reported in readme
 
-	[ -z "$__version" ] && echo "missing --version" && exit;
-	[ -z "$__suffix" ] && echo "missing --suffix" && exit;
-	[ -z "$__timeframe" ] && echo "missing --timeframe" && exit;
+	local args=("${@}")  
+	__parse_args $@;
 
-	__activate_python_env
+	[ -z "$__version" ] && echo "[obackest] missing --version" && exit;
+	[ -z "$__timeframe" ] && echo "[obackest] missing timeframe" && exit;
+	[ -z "$__suffix" ] && echo "[obackest] missing --suffix" && exit;
 
 	#list of tests name 
-	local __tests=( "mm2021:$mm2021" "all_time:$all_time" )
+	local __tests=( "mm2021:$mm2021" "alltime:$all_time" )
 
-	echo "WARNING: this is an official backtest, it will run with timeframe_details=5m over several timeranges"
+	echo "[obacktest] [WARNING]: this is an official backtest, it will run with timeframe_details=5m over several timeranges"
 	sleep 5
 
-	echo "starting..."
+	echo "[obacktest] starting..."
 
 	__official=true;
-	local suffix="$__suffix"
 	for ob_test in "${__tests[@]}" ; do
 		local testname="${ob_test%%:*}"  #key
 		local timerange="${ob_test##*:}" #value
-		__timeframe_detail='5m'
-		__timerange=$timerange
-		__suffix="$suffix""_""$testname"
-		__allstrategy=true;
-		backtest
+		__exec backtest --suffix $__suffix --$__timeframe --$testname --version $__version $__extra_args
 	done
 }
 
 opt()
 {
-	__activate_python_env
+	__parse_args $@;
 
-	[ -z "$__strategy" ] && echo "missing --strategy" && exit;
-	[ -z "$__timeframe" ] && echo "missing --timeframe" && exit;
+	[ -z "$__epochs" ] && echo "missing --epochs" && exit;
+	[ -z "$__loss" ] && echo "missing --hyperopt-loss" && exit;
+	[ -z "$__timeframe" ] && echo "missing timeframe" && exit;
 	[ -z "$__timerange" ] && echo "missing timerange" && exit;
-	[ -z "$__timeframe_detail" ] && echo "missing --timeframe-detail" && exit;
-	[ -z "$__epochs" ] && echo "missing --hyperopt-loss" && exit;
-	[ -z "$__loss" ] && echo "missing --epochs" && exit;
 
-	local __freqtrade__cmd="freqtrade hyperopt --config $__config --epochs $__epochs --hyperopt-loss $__loss --timerange $__timerange --strategy $__strategy --timeframe $__timeframe --userdir $__volume  $__args";
-	$__cmd_prefix $__freqtrade__cmd	
+	#check values
+	[ -z "$__strategy" ] && echo "missing strategy" && exit;
+
+	$epoch=$__epochs
+	$loss=$__loss
+	$strategy=$__strategy
+	$timeframe=$__timeframe
+	$timerange=$__timerange	
+
+	local freqtrade__cmd="freqtrade hyperopt --config $__config --epochs $epochs --hyperopt-loss $loss --timerange $timerange --strategy $strategy --timeframe $timeframe --userdir $__volume  $__extra_args";
+
+	for nv_file in user_data/strategies/*.py; do
+		if [ -f "$nv_file" ]
+		then
+			local strategy=${nv_file%.py}
+			local strategy=${strategy##*/}
+
+			__strategy=$strategy
+			echo "Optimizing $strategy"
+			opt --strategy $__strategy --epochs $__epochs --hyperopt-loss $__loss --$timeframe --timerange $timerange $__extra_args
+		fi
+	done
+
+
+	__save $__extra_args
+
+	$__cmd_prefix $freqtrade__cmd	
 }
 
 new_version()
 {
-	__activate_python_env
+	#parse args
+	__parse_args $@;
+	
 	[ -z "$__version" ] && echo "missing --version" && exit;
-	[ -z "$__epochs" ] && echo "missing --hyperopt-loss" && exit;
-	[ -z "$__loss" ] && echo "missing --epochs" && exit;
+	[ -z "$__epochs" ] && echo "missing --epochs" && exit;
+	[ -z "$__loss" ] && echo "missing --hyperopt-loss" && exit;
 
 	local __tests=( "t2019":$t2019 "t2020":$t2020 "t2021":$t2021 "tnow":$all_time )
 	local __timeframes=( "4h" "12h" )
@@ -121,12 +140,9 @@ new_version()
 
 			local testname="${nv_test%%:*}"  #key
 			local timerange="${nv_test##*:}" #value
+			local timeframe=$nv_timeframe
 
-			__timerange=$timerange
-			__timeframe_detail='5m'
-			__timeframe=$nv_timeframe
-
-			#run 1 test per strategy
+			#optimize 1 test per strategy
 			for nv_file in user_data/strategies/*.py; do
 				if [ -f "$nv_file" ]
 				then
@@ -135,25 +151,13 @@ new_version()
 
 					__strategy=$strategy
 					echo "Optimizing $strategy"
-					opt
+					opt --strategy $__strategy --epochs $__epochs --hyperopt-loss $__loss --$timeframe --timerange $timerange $__extra_args
 				fi
 			done
 
 			#run official backtest for all timeframes and timeranges
-			__suffix=$testname
-			obacktest
-
-			#copy strategy.json into opt folder and rename it to strategy_$version.json
-			mkdir -p "user_data/versions/"
-			local file 
-			for file in user_data/strategies/*.py; do
-				if [ -f "$file" ]
-				then
-					local strategy=${file%.py}
-					local strategy=${strategy##*/}
-					$__cmd_prefix cp "user_data/strategies/$strategy.json" "user_data/versions/$strategy""_""$testname""_""$nv_timeframe""_""$__version.json"
-				fi
-			done
+			local suffix=$testname
+			obacktest --suffix $suffix --$timeframe --timerange $__timerange $__extra_args
 		done
 	done
 
@@ -161,8 +165,6 @@ new_version()
 
 report()
 {
-	__activate_python_env
-
 	$__cmd_prefix python "pyscripts/csv_report.py" $@
 }
 
@@ -171,10 +173,10 @@ bulkdownload()
 	__activate_python_env
 	__timerange=$all_time
 	echo "Start downloading ..."
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__args[@]} ;
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 1h ${__args[@]} ;
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 4h ${__args[@]} ;
-	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 12h ${__args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 5m ${__extra_args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 1h ${__extra_args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 4h ${__extra_args[@]} ;
+	$__cmd_prefix freqtrade download-data --exchange "binance"  --pairs-file $__volume/data/binance/pairs.json  --timerange $__timerange -t 12h ${__extra_args[@]} ;
 }
 
 
@@ -191,7 +193,6 @@ help(){
 
 setup()
 {
-	
 	rm -rf $__env
 	$__cmd_prefix python -m venv $__env
 
@@ -213,7 +214,6 @@ setup()
 	$__cmd_prefix python -m pip install -e .
 	$__cmd_prefix cd - 
 	$__cmd prefix pip install -r ./requirements.txt
-	#$__cmd_prefix rm -rf freqtrade
 }
 
 update()
@@ -231,6 +231,15 @@ version()
 }
 
 #############################  PRIVATE #########################################
+
+__activate_python_env()
+{
+	#activate virtual environment
+	echo "Activating python environment"
+	$__cmd_prefix source $__env/bin/activate
+	echo "Activated python environment"
+}
+
 __set()
 {
 	#first argument it s one command , followings are arguments
@@ -241,87 +250,136 @@ __set()
 	fi
 }
 
-__backtest()
+__parse_cmd()
 {
-	# $1 = strategy name 
+	__cmd=;
+	__args=();
+	while [[ $# -gt 0 ]]; do
+		case $1 in			
+			*)
+				__set $1;
+				shift
+			;;
+		esac;
+	done;
 
-	#define command (we always enable position stacking)
-	local __cmd="freqtrade backtesting --config $__config --timerange $__timerange --strategy $1 --timeframe $__timeframe --timeframe-detail $__timeframe_detail --backtest-filename $__dir/$1.json $__args --userdir $__volume $__args";
-
-	#store the command that lead to the result (this is essential to compare different tests)
-	if [ "$__cmd_prefix" == "echo" ]
-	then
-		echo $__cmd '>' "$__dir/$1.cmd"
-	else
-		echo "$__cmd_prefix $__cmd" > "$__dir/$1.cmd"
-	fi
-
-	echo "Running $__cmd"
-
-	#run command and store report (just because we can)
-	if [ "$__cmd_prefix" == "echo" ]
-	then
-		echo $__cmd '>' "$__dir/$1.report"
-	else
-		$__cmd_prefix $__cmd > "$__dir/$1.report"
-	fi
 }
 
-__backtest_all_strategies()
+__compute_opt_file_path()
 {
-	#run 1 test per strategy
-	for bas_file in user_data/strategies/*.py; do
-		if [ -f "$bas_file" ]
+	strategy=$1
+	__opt_file_path=$__volume/versions/"$strategy""_""$__suffix""_""$__timeframe""_""$__version.json"
+}
+
+__exec()
+{
+	__parse_cmd $@
+
+	#list of commands that need to be executed right away
+	[ $__cmd == "help" ] && help && return;
+	[ $__cmd == "setup" ] && setup && return;
+	[ $__cmd == "update" ] && update && return;
+	[ $__cmd == "version" ] && version && return;
+	[ $__cmd == "bulkdownload" ] && bulkdownload && return;
+	[ $__cmd == "report" ] && report $__extra_args && return;
+
+	__activate_python_env
+
+	echo "[exec] called cmd: $__cmd args: $__args"
+	#this will also parse the args
+	local args=("$__args")  
+		
+	echo "[debug] current suffix $__suffix"
+	__parse_args $__args
+	echo "[debug] post current suffix $__suffix"
+
+	#if not strategy is defined we enable all strategy
+	#we define __allstrategy for functions that define one strategy but still want to test all of them (like new_version)
+	[ -z "$__strategy" ] && __allstrategy=true;
+
+	#run command over every strategy
+
+	if [ "$__allstrategy" == "true" ]
+	then
+		for exec_file in user_data/strategies/*.py; do
+			if [ -f "$exec_file" ]
+			then
+				local strategy=${exec_file%.py}
+				local strategy=${strategy##*/}
+				__compute_opt_file_path $strategy
+				#check if file exists
+				if [ -f "$__opt_file_path" ]
+				then
+					echo "[exec] loaded optimized file $__opt_file_path"
+					cp "$__opt_file_path" "$__volume/strategies/$strategy.json"
+				fi
+				echo "[exec] $__cmd --strategy $strategy $args"
+				$__cmd --strategy $strategy $args
+
+			fi
+		done
+	else
+		__compute_opt_file_path $__strategy
+		#check if file exists
+		if [ -f "$__opt_file_path" ]
 		then
-			local strategy=${bas_file%.py}
-			local strategy=${strategy##*/}
-
-			echo "Testing $strategy"
-			__backtest $strategy
+			echo "[exec] loaded optimized file $__opt_file_path"
+			#copy file to strategies folder
+			cp "$__opt_file_path" "$__volume/strategies/$__strategy.json"
 		fi
-	done
+		echo "[exec] $__cmd $args"
+		$__cmd  $args
+	fi
+
 }
 
-__activate_python_env()
+__save()
 {
-	#activate virtual environment
-	echo "Activating python environment"
-	$__cmd_prefix source $__env/bin/activate
-	echo "Activated python environment"
+	__parse_args $@
+
+	#check values
+	[ -z "$__timeframe" ] && echo "[save process] missing timeframe (4h or 12h)" && exit;
+	[ -z "$__timerange" ] && echo "[save process] missing timerange" && exit;
+	[ -z "$__suffix" ] && echo "[save process] missing --suffix" && exit;
+
+
+	local strategy=$__strategy
+	local timeframe=$__timeframe
+	local timerange=$__timerange
+	local suffix=$__suffix
+
+	__compute_opt_file_path $strategy
+	local cmd="cp "$__volume/strategies/$strategy.json" "$__volume/versions/$__opt_file_path";echo '[save process] saved optimized file $__opt_file_path'"
+
+	__exec $cmd $__extra_args
 }
 
 __parse_args()
 {
-	[[ -z ${__parsed_args} ]] && __parsed_args=true || return 0;
-
-	__cmd=;
 	__cmd_prefix=;
-	__dir=;
-	__suffix=;
-	__version=;
+	__version="0.0";
 	__timerange=;
+	__timerange_name=;
 	__timeframe=;
+	__suffix=;
 	__epochs=;
 	__loss=;
 	__timeframe_detail='5m';
-	__warning_timeframe_detail="WARNING - timeframe detail set to 5m"
 	__strategy=;
 	__config="$__volume/configs/bt/top10.json";
-	__args=();
-
+	__extra_args=;
 	while [[ $# -gt 0 ]]; do
 		case $1 in
 			--echo)
 				__cmd_prefix=echo;
 				shift
 			;;
-
-			--suffix)
-				__suffix=$2;
-				shift 2;
-			;;
 			--version)
 				__version=$2;
+				shift 2;
+			;;
+			--suffix)
+				__suffix=$2;
 				shift 2;
 			;;
 			--strategy)
@@ -336,35 +394,37 @@ __parse_args()
 				__loss=$2
 				shift 2;
 			;;
-
-			--timeframe)
-				__timeframe=$2;
-				shift 2;
+			--4h)
+				__timeframe='4h';
+				shift;
 			;;
-			--timeframe-detail)
-				__timeframe_detail=$2;
-				__warning_timeframe_detail;
-				shift 2;
+			--12h)
+				__timeframe='12h';
+				shift;
 			;;
-
 			--uptrend)
 				__timerange="$uptrend"
+				__timerange_name="uptrend"
 				shift
 			;;
 			--downtrend)
 				__timerange="$downtrend"
+				__timerange_name="downtrend"
 				shift
 			;;
 			--alltime)
 				__timerange="$all_time"
+				__timerange_name="alltime"
 				shift
 			;;
 			--mm2021)
 				__timerange="$mm2021"
+				__timerange_name="mm2021"
 				shift
 			;;
 			--mm2020)
 				__timerange="$mm2020"
+				__timerange_name="mm2020"
 				shift
 			;;
 			--basic)
@@ -380,16 +440,12 @@ __parse_args()
 				shift
 			;;
 			*)
-				__set $1;
+				__extra_args="$__extra_args $1";
 				shift
 			;;
 		esac;
 	done;
 }
 
-
-
-
 #run
-__parse_args $@
-$__cmd 
+__exec $@

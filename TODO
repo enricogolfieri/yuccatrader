@@ -1,8 +1,11 @@
 BACKTEST
-- fix private functions to accept $@ and not use $__args 
-- add version folder to store backtests 
-- add tmp backtest folder (and use the normal for only official tests)
 - limit number of strategy to 3 (no reason to test more of them at every version)
+
+OPT:  
+- OPT should alwasy move under versions and ask for a suffix
+- new_version can now be just an opt+obacktest 
+- you can simulate new_version by first doing an opt and when you are satisfied you run an obacktest on that specific strategy
+- cmd should first try to load from versions first 
 
 REPORT
 - fix problem with report to official folder 
