@@ -77,7 +77,7 @@ obacktest()
 	for ob_test in "${__tests[@]}" ; do
 		local testname="${ob_test%%:*}"  #key
 		local timerange="${ob_test##*:}" #value
-		__exec backtest --suffix $__suffix --$__timeframe --$testname --version $__version $__extra_args
+		__exec backtest --suffix $__suffix --$__timeframe --$testname --version $__version --strategy $__strategy $__extra_args
 	done
 }
 
